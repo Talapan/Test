@@ -14,20 +14,17 @@
       height: 100vh;
       margin: 0;
     }
-
     .login-box {
       background: #2c2c3e;
       padding: 30px 40px;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
       text-align: center;
-      width: 300px;
+      width: 320px;
     }
-
     .login-box h2 {
       margin-bottom: 20px;
     }
-
     input {
       width: 100%;
       padding: 12px;
@@ -37,7 +34,6 @@
       outline: none;
       font-size: 16px;
     }
-
     button {
       padding: 12px 20px;
       width: 100%;
@@ -49,20 +45,19 @@
       cursor: pointer;
       transition: background 0.3s;
     }
-
     button:hover {
       background-color: #45a049;
     }
-
     .error {
       color: #ff7070;
       margin-top: 10px;
     }
-
     .toggle-password {
       color: #ccc;
       cursor: pointer;
       font-size: 12px;
+      user-select: none;
+      margin-bottom: 10px;
     }
   </style>
 </head>
@@ -70,8 +65,8 @@
   <div class="login-box">
     <h2>Minecraft Club Login</h2>
     <form id="login-form">
-      <input type="text" id="username" placeholder="Username" required />
-      <input type="password" id="password" placeholder="Password" required />
+      <input type="text" id="username" placeholder="Username" required autocomplete="username" />
+      <input type="password" id="password" placeholder="Password" required autocomplete="current-password" />
       <div class="toggle-password" onclick="togglePassword()">Show/Hide Password</div>
       <button type="submit">Login</button>
     </form>
@@ -79,31 +74,65 @@
   </div>
 
   <script>
-    // Handle form submission
-    document.getElementById('login-form').addEventListener('submit', function (e) {
-      e.preventDefault();
-      login();
-    });
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    }
 
-    function login() {
+    // User database: username mapped to password hash & role
+    const users = {
+      Talapan: {
+        passwordHash: '5c997a381ed37eaba3f00c2ae4c7f063ff8fa5e3e07e6d430b9d5a87acb6f1e1', // "I am better"
+        role: 'admin'
+      },
+      Elijah: {
+        passwordHash: 'bc868c3f3d3cbdba1d4aaf900839ffb524d6b97bb35dba29a9364b9689f5cd31', // "I am gay"
+        role: 'user'
+      }
+    };
+
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
       const errorMsg = document.getElementById('error-msg');
 
-      if (username === 'admin' && password === 'minecraft123') {
-        // Save login status
+      if (!users[username]) {
+        errorMsg.textContent = '❌ Incorrect username or password.';
+        return;
+      }
+
+      const hash = await sha256(password);
+      if (hash === users[username].passwordHash) {
         sessionStorage.setItem('loggedIn', 'true');
-        // Redirect to club page
-        window.location.href = 'club.html';
+        sessionStorage.setItem('username', username);
+        sessionStorage.setItem('role', users[username].role);
+
+        if (users[username].role === 'admin') {
+          window.location.href = './admin.html';
+        } else {
+          window.location.href = './user.html';
+        }
       } else {
         errorMsg.textContent = '❌ Incorrect username or password.';
       }
-    }
+    });
 
     function togglePassword() {
       const passInput = document.getElementById('password');
       passInput.type = passInput.type === 'password' ? 'text' : 'password';
     }
+
+    // Support Enter key on inputs:
+    document.getElementById('username').addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') document.getElementById('login-form').requestSubmit();
+    });
+    document.getElementById('password').addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') document.getElementById('login-form').requestSubmit();
+    });
   </script>
 </body>
 </html>
